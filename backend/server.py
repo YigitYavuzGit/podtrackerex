@@ -8,7 +8,7 @@ import os
 import shutil
 import uuid
 
-# Import from our modules
+# Import from modules
 from database import get_db, PodModel, ImageModel, create_tables
 from schemas import Pod, PodCreate, ImageSchema
 
@@ -19,7 +19,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Initialize FastAPI app
 app = FastAPI(title="Plant Pod Tracker API")
 
-# Add CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,6 +32,8 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # API endpoints
+
+# Add a new Pod
 @app.post("/api/pods", response_model=Pod)
 async def create_pod(
     name: str = Form(...),
@@ -71,11 +73,13 @@ async def create_pod(
     
     return db_pod
 
+# Retrieve a list of all stored pods, basic details
 @app.get("/api/pods", response_model=List[Pod])
 def get_all_pods(db: Session = Depends(get_db)):
     pods = db.query(PodModel).all()
     return pods
 
+# Get 1 specific Pod
 @app.get("/api/pods/{pod_id}", response_model=Pod)
 def get_pod(pod_id: int, db: Session = Depends(get_db)):
     pod = db.query(PodModel).filter(PodModel.id == pod_id).first()
@@ -83,6 +87,8 @@ def get_pod(pod_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Pod not found")
     return pod
 
+
+# Adding a new image to an existing Pod
 @app.post("/api/pods/{pod_id}/images", response_model=ImageSchema)
 async def add_image_to_pod(
     pod_id: int,
@@ -111,30 +117,13 @@ async def add_image_to_pod(
     
     return db_image
 
+# Getting an image
 @app.get("/api/uploads/{filename}")
 async def get_image(filename: str):
     file_path = os.path.join(UPLOAD_DIR, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(file_path)
-
-@app.delete("/api/pods/{pod_id}")
-def delete_pod(pod_id: int, db: Session = Depends(get_db)):
-    pod = db.query(PodModel).filter(PodModel.id == pod_id).first()
-    if pod is None:
-        raise HTTPException(status_code=404, detail="Pod not found")
-    
-    # Delete associated image files
-    for image in pod.images:
-        file_path = os.path.join(UPLOAD_DIR, image.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    
-    # Delete pod record (cascade will delete image records)
-    db.delete(pod)
-    db.commit()
-    
-    return {"message": "Pod deleted successfully"}
 
 @app.on_event("startup")
 def startup_db_client():

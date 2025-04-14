@@ -20,7 +20,7 @@ class PodModel(Base):
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     
-    # Relationship: one pod can have many images
+    # Relationship: one pod can have multiple images
     images = relationship("ImageModel", back_populates="pod", cascade="all, delete-orphan")
 
 class ImageModel(Base):
